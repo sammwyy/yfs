@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package yfs;
+
+option go_package = "./yfs";
+
+// FileSystemHeader contains the root directory and system metadata
+message FileSystemHeader {
+    uint32 version = 1;
+    uint32 block_size = 2;
+    DirectoryEntry root = 3;
+}
+
+// FileMetadata contains common metadata for files and directories
+message FileMetadata {
+    string name = 1;
+    int64 mod_time = 2;  // Unix timestamp
+}
+
+// FileEntry_pb represents a file in the protobuf format
+message FileEntry_pb {
+    FileMetadata metadata = 1;
+    uint32 first_block_id = 2;
+    int64 size = 3;
+}
+
+// DirectoryEntry represents a directory with files and subdirectories
+message DirectoryEntry {
+    FileMetadata metadata = 1;
+    map<string, FileEntry_pb> files = 2;
+    map<string, DirectoryEntry> directories = 3;
+}
