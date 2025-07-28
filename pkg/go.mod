@@ -1,4 +1,4 @@
-module github.com/sammwyy/yfs/lib
+module github.com/sammwyy/yfs/pkg
 
 go 1.21
 
