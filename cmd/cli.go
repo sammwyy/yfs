@@ -2,96 +2,21 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
-	"io/ioutil"
-	"log"
+
 	"os"
 	"strings"
 
-	yfs "github.com/sammwyy/yfs/lib"
+	"github.com/sammwyy/yfs"
 )
 
-type YFSCli struct {
+type Root struct {
 	fs          *yfs.YFS
 	currentPath string
 	scanner     *bufio.Scanner
 }
 
-func main() {
-	var (
-		directory  = flag.String("dir", "", "Directory containing YFS files (index.yfs, free.yfs, blocks.glob)")
-		indexFile  = flag.String("index", "", "Path to index.yfs file")
-		freeFile   = flag.String("free", "", "Path to free.yfs file")
-		blocksFile = flag.String("blocks", "", "Path to blocks.glob file")
-		help       = flag.Bool("h", false, "Show help")
-	)
-
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "YFS CLI Tool - Interactive command line interface for YFS file system\n\n")
-		fmt.Fprintf(os.Stderr, "Usage:\n")
-		fmt.Fprintf(os.Stderr, "  %s -dir <directory>                    # Use directory containing YFS files\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s -index <file> -free <file> -blocks <file>  # Specify individual files\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "\nOptions:\n")
-		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nCommands available in interactive mode:\n")
-		fmt.Fprintf(os.Stderr, "  ls [path]                   - List directory contents\n")
-		fmt.Fprintf(os.Stderr, "  cd <path>                   - Change current directory\n")
-		fmt.Fprintf(os.Stderr, "  pwd                         - Print current directory\n")
-		fmt.Fprintf(os.Stderr, "  cat <file>                  - Display file contents\n")
-		fmt.Fprintf(os.Stderr, "  cp <src> <dst>              - Copy file within YFS\n")
-		fmt.Fprintf(os.Stderr, "  mv <src> <dst>              - Move/rename file within YFS\n")
-		fmt.Fprintf(os.Stderr, "  rm <file>                   - Delete file\n")
-		fmt.Fprintf(os.Stderr, "  mkdir <dir>                 - Create directory (creates parent dirs if needed)\n")
-		fmt.Fprintf(os.Stderr, "  write <file> <content>      - Write content to file\n")
-		fmt.Fprintf(os.Stderr, "  push <local_file> <remote_file>  - Copy local file to YFS\n")
-		fmt.Fprintf(os.Stderr, "  pull <remote_file> <local_file>  - Copy YFS file to local filesystem\n")
-		fmt.Fprintf(os.Stderr, "  tree                        - Show complete directory tree\n")
-		fmt.Fprintf(os.Stderr, "  stats                       - Show filesystem statistics\n")
-		fmt.Fprintf(os.Stderr, "  help                        - Show this help\n")
-		fmt.Fprintf(os.Stderr, "  exit, quit                  - Exit the CLI\n")
-	}
-
-	flag.Parse()
-
-	if *help {
-		flag.Usage()
-		return
-	}
-
-	var fs *yfs.YFS
-	var err error
-
-	// Initialize YFS based on provided arguments
-	if *directory != "" {
-		if *indexFile != "" || *freeFile != "" || *blocksFile != "" {
-			fmt.Fprintf(os.Stderr, "Error: Cannot use -dir with individual file flags\n")
-			flag.Usage()
-			os.Exit(1)
-		}
-		fs, err = yfs.NewYFS(*directory)
-	} else if *indexFile != "" && *freeFile != "" && *blocksFile != "" {
-		fs, err = yfs.NewYFSFromPaths(*indexFile, *freeFile, *blocksFile)
-	} else {
-		fmt.Fprintf(os.Stderr, "Error: Must specify either -dir or all three files (-index, -free, -blocks)\n")
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	if err != nil {
-		log.Fatalf("Failed to initialize YFS: %v", err)
-	}
-
-	cli := &YFSCli{
-		fs:          fs,
-		currentPath: "/",
-		scanner:     bufio.NewScanner(os.Stdin),
-	}
-
-	cli.run()
-}
-
-func (c *YFSCli) run() {
+func (c *Root) run() {
 	fmt.Println("YFS CLI Tool")
 	fmt.Printf("Block size: %d bytes\n", c.fs.GetBlockSize())
 	fmt.Println("Type 'help' for available commands or 'exit' to quit")
@@ -155,7 +80,7 @@ func (c *YFSCli) run() {
 	}
 }
 
-func (c *YFSCli) showHelp() {
+func (c *Root) showHelp() {
 	fmt.Println("Available commands:")
 	fmt.Println("  ls [path]                   - List directory contents")
 	fmt.Println("  cd <path>                   - Change current directory")
@@ -174,7 +99,7 @@ func (c *YFSCli) showHelp() {
 	fmt.Println("  exit, quit                  - Exit the CLI")
 }
 
-func (c *YFSCli) cmdLs(args []string) {
+func (c *Root) cmdLs(args []string) {
 	path := c.currentPath
 	if len(args) > 0 {
 		path = c.resolvePath(args[0])
@@ -203,7 +128,7 @@ func (c *YFSCli) cmdLs(args []string) {
 	}
 }
 
-func (c *YFSCli) cmdCd(args []string) {
+func (c *Root) cmdCd(args []string) {
 	if len(args) != 1 {
 		fmt.Println("Usage: cd <path>")
 		return
@@ -223,11 +148,11 @@ func (c *YFSCli) cmdCd(args []string) {
 	c.currentPath = newPath
 }
 
-func (c *YFSCli) cmdPwd() {
+func (c *Root) cmdPwd() {
 	fmt.Println(c.currentPath)
 }
 
-func (c *YFSCli) cmdCat(args []string) {
+func (c *Root) cmdCat(args []string) {
 	if len(args) != 1 {
 		fmt.Println("Usage: cat <file>")
 		return
@@ -246,7 +171,7 @@ func (c *YFSCli) cmdCat(args []string) {
 	}
 }
 
-func (c *YFSCli) cmdCp(args []string) {
+func (c *Root) cmdCp(args []string) {
 	if len(args) != 2 {
 		fmt.Println("Usage: cp <src> <dst>")
 		return
@@ -264,7 +189,7 @@ func (c *YFSCli) cmdCp(args []string) {
 	fmt.Printf("Copied %s to %s\n", src, dst)
 }
 
-func (c *YFSCli) cmdMv(args []string) {
+func (c *Root) cmdMv(args []string) {
 	if len(args) != 2 {
 		fmt.Println("Usage: mv <src> <dst>")
 		return
@@ -282,7 +207,7 @@ func (c *YFSCli) cmdMv(args []string) {
 	fmt.Printf("Moved %s to %s\n", src, dst)
 }
 
-func (c *YFSCli) cmdRm(args []string) {
+func (c *Root) cmdRm(args []string) {
 	if len(args) != 1 {
 		fmt.Println("Usage: rm <file>")
 		return
@@ -298,7 +223,7 @@ func (c *YFSCli) cmdRm(args []string) {
 	fmt.Printf("Deleted %s\n", path)
 }
 
-func (c *YFSCli) cmdMkdir(args []string) {
+func (c *Root) cmdMkdir(args []string) {
 	if len(args) != 1 {
 		fmt.Println("Usage: mkdir <dir>")
 		return
@@ -310,7 +235,7 @@ func (c *YFSCli) cmdMkdir(args []string) {
 	fmt.Printf("Created directory %s\n", path)
 }
 
-func (c *YFSCli) cmdWrite(args []string) {
+func (c *Root) cmdWrite(args []string) {
 	if len(args) < 2 {
 		fmt.Println("Usage: write <file> <content>")
 		return
@@ -328,7 +253,7 @@ func (c *YFSCli) cmdWrite(args []string) {
 	fmt.Printf("Wrote %d bytes to %s\n", len(content), path)
 }
 
-func (c *YFSCli) cmdPush(args []string) {
+func (c *Root) cmdPush(args []string) {
 	if len(args) != 2 {
 		fmt.Println("Usage: push <local_file> <remote_file>")
 		return
@@ -338,7 +263,7 @@ func (c *YFSCli) cmdPush(args []string) {
 	remotePath := c.resolvePath(args[1])
 
 	// Read local file
-	data, err := ioutil.ReadFile(localFile)
+	data, err := os.ReadFile(localFile)
 	if err != nil {
 		fmt.Printf("Error reading local file: %v\n", err)
 		return
@@ -354,7 +279,7 @@ func (c *YFSCli) cmdPush(args []string) {
 	fmt.Printf("Pushed %s (%d bytes) to %s\n", localFile, len(data), remotePath)
 }
 
-func (c *YFSCli) cmdPull(args []string) {
+func (c *Root) cmdPull(args []string) {
 	if len(args) != 2 {
 		fmt.Println("Usage: pull <remote_file> <local_file>")
 		return
@@ -371,7 +296,7 @@ func (c *YFSCli) cmdPull(args []string) {
 	}
 
 	// Write to local file
-	err = ioutil.WriteFile(localFile, data, 0644)
+	err = os.WriteFile(localFile, data, 0644)
 	if err != nil {
 		fmt.Printf("Error writing local file: %v\n", err)
 		return
@@ -380,7 +305,7 @@ func (c *YFSCli) cmdPull(args []string) {
 	fmt.Printf("Pulled %s (%d bytes) to %s\n", remotePath, len(data), localFile)
 }
 
-func (c *YFSCli) cmdTree() {
+func (c *Root) cmdTree() {
 	tree, err := c.fs.LsAll()
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -390,7 +315,7 @@ func (c *YFSCli) cmdTree() {
 	c.printTree(tree, "")
 }
 
-func (c *YFSCli) cmdStats() {
+func (c *Root) cmdStats() {
 	stats, err := c.fs.GetStats()
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -403,11 +328,11 @@ func (c *YFSCli) cmdStats() {
 	}
 }
 
-func (c *YFSCli) printFile(entry *yfs.FileEntry, indent string) {
+func (c *Root) printFile(entry *yfs.FileEntry, indent string) {
 	fmt.Printf("%s├── %s (%d bytes)\n", indent, entry.Metadata.Name, entry.Size)
 }
 
-func (c *YFSCli) printTree(entry *yfs.FileInfo, indent string) {
+func (c *Root) printTree(entry *yfs.FileInfo, indent string) {
 	if entry.IsDirectory {
 		fmt.Printf("%s├── %s/\n", indent, entry.Name)
 	} else {
@@ -415,7 +340,7 @@ func (c *YFSCli) printTree(entry *yfs.FileInfo, indent string) {
 	}
 }
 
-func (c *YFSCli) resolvePath(path string) string {
+func (c *Root) resolvePath(path string) string {
 	if strings.HasPrefix(path, "/") {
 		return path
 	}
