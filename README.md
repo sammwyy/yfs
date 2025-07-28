@@ -1,23 +1,28 @@
 # YFS: Vertical File System
 
-A Vertical file system implementation in Go that stores everything in three files: index, free blocks, and block storage.
+A vertical file system implementation in Go, built for fast, append-friendly, and scalable random access over a block-based storage abstraction.
 
-## Architecture
+---
 
-YFS consists of three main files:
-- **index.yfs**: Protocol Buffer file containing the directory tree and file metadata
-- **free.yfs**: Binary file listing available block IDs for reuse
-- **blocks.glob**: Binary file containing the actual file data in fixed-size blocks
+## ⚙️ Architecture
 
-## Project Structure
+YFS consists of three core files:
+
+* **`root.yfs`**: Protocol Buffer file containing the directory tree and file metadata (inodes)
+* **`bitmap.yfs`**: Binary bitmap that tracks free and used blocks efficiently
+* **`blocks.glob`**: Raw binary data, storing all fixed-size blocks (data and metadata blocks)
+
+---
+
+## 📁 Project Structure
 
 ```
 yfs/
 ├── binutils/
-│   └── yfs_binutils.go    # Utility functions for YFS
+│   ├── yfs_binutils.go    # Utility functions for YFS
 │   └── go.mod             # Go module configuration
 ├── lib/
-│   └── go.mod             # Go module configuration
+│   ├── go.mod             # Go module configuration
 │   ├── yfs.proto          # Protocol buffer definitions
 │   ├── yfs.pb.go          # Generated protobuf code
 │   └── yfs.go             # Main YFS implementation
@@ -25,10 +30,11 @@ yfs/
 ├── build.sh               # Build script for binutils
 ├── prepare.sh             # Script to prepare the environment
 └── README.md
-
 ```
 
-## Build and Run
+---
+
+## 🚀 Build and Run
 
 ### 1. Clone the Repository
 
@@ -39,146 +45,150 @@ cd yfs
 
 ### 2. Generate Protocol Buffer Code
 
-Save the protobuf definition as `yfs/yfs.proto`, then run:
-
 ```bash
-cd lib
-protoc --go_out=. --go_opt=paths=source_relative yfs.proto
-cd ..
+chmod +x ./build_proto.sh
+./build_proto.sh
 ```
 
-This will generate `yfs.pb.go` with the required structs.
-
-### 3. Build and Run
+### 3. Build and Launch
 
 ```bash
 chmod +x ./build.sh
-
-# Build the binutils
 ./build.sh
 
-# Interactive YFS shell bin
+# Start interactive YFS shell
 ./dist/yfs -dir ./workspace
 ```
 
-## Key Features
+---
 
-### Block Management
-- **Fixed-size blocks**: Default 128 bytes (configurable)
-- **Block chaining**: Files can span multiple blocks using next-block pointers
-- **Free block reuse**: Deleted file blocks are tracked and reused
-- **Dynamic allocation**: New blocks created as needed
+## 🔑 Key Features
 
-### File Operations
-- **WriteFile**: Create or update files with automatic block management
-- **ReadFile**: Read complete file contents from block chains
-- **DeleteFile**: Remove files and mark blocks as free
-- **CopyFile**: Duplicate files with independent block allocation
-- **MoveFile**: Rename/move files (only updates index)
+### ✅ Block Management
 
-### Directory Operations
-- **Ls**: List files and directories in a specific path
-- **LsAll**: Get complete directory tree structure
-- **Automatic directory creation**: Parent directories created as needed
+* **Fixed-size blocks** (default 128 bytes, configurable)
+* **Indexed block chaining**: Files reference a first *block index*, which lists all blocks (including ranges)
+* **Next-block pointers** inside block indexes allow chaining large files
+* **4-byte footer per block** for pointing to next index block
+* **Free block tracking** via a fast bitmap in `bitmap.yfs`
+* **Dynamic allocation** with intelligent bitmap traversal
 
-### System Information
-- **GetStats**: File system statistics (blocks used/free, version, etc.)
-- **GetBlockSize**: Current block size configuration
+### ✅ File Operations
 
-## Block Storage Format
+* **WriteFile**: Automatically allocates blocks and updates index chain
+* **ReadFile**: Efficient sequential reads using index block + data blocks
+* **DeleteFile**: Frees all data and index blocks using bitmap
+* **CopyFile**: Creates new file with duplicated block chain
+* **MoveFile**: Updates metadata without touching underlying data
 
-### Blocks File Header
+### ✅ Directory Operations
+
+* **Ls / LsAll**: List contents of a path or full tree
+* **CreateDirectory**: Automatically creates parent directories
+* **DirectoryEntry** now uses lightweight pointers (name + block ID)
+
+### ✅ System Info
+
+* **GetStats**: View stats like block usage, file count, etc.
+* **GetBlockSize**: Query the configured block size
+
+---
+
+## 🧱 Block Storage Format
+
+### Global Header (in `blocks.glob`)
+
 ```
-[0-1]   Block size (uint16, little-endian)
+[0-1]  Block size (uint16, little-endian)
 ```
 
-### Block Structure
-```
-[0-N]       Block data (N = block_size bytes)
-[N-N+3]     Next block ID (uint32, little-endian, 0 = end of file)
-```
+### Data Block Format
 
-### Block Offset Calculation
 ```
-offset = 2 + ((block_size + 4) * (block_id - 1))
+[0 - N-5]     Raw data
+[N-4 - N-1]   Next block ID (uint32, 0 if none)
 ```
 
-## Protocol Buffer Schema
+### Index Block Format
 
-The index file uses Protocol Buffers for efficient serialization:
+```
+- Contains a list of:
+   - block IDs (uint32)
+   - or block ranges (start:end)
 
-- **FileSystemHeader**: Root container with version and directory tree
-- **DirectoryEntry**: Directory with files and subdirectories maps
-- **FileEntry_pb**: File metadata with first block ID and size
-- **FileMetadata**: Common metadata (name, modification time)
+- Ends with:
+   - [N-4 - N-1] → next index block ID
+```
 
-## Usage Example
+### Offset Calculation
 
 ```go
-// Create new YFS instance
-fs, err := yfs.NewYFS("/path/to/yfs/directory")
-
-// Write a file
-err = fs.WriteFile("test.txt", []byte("Hello, YFS!"))
-
-// Read a file
-data, err := fs.ReadFile("test.txt")
-
-// List directory
-entries, err := fs.Ls("/")
-
-// Get complete tree
-tree, err := fs.LsAll()
-
-// File operations
-err = fs.CopyFile("test.txt", "backup.txt")
-err = fs.MoveFile("backup.txt", "archive/backup.txt")
-err = fs.DeleteFile("test.txt")
-
-// System info
-stats, err := fs.GetStats()
+offset = 2 + (block_id * (block_size + 4)) // +4 for footer
 ```
 
-## Performance Characteristics
+---
 
-- **Random access**: O(1) block access by ID
-- **File read/write**: O(blocks_used) for file operations
-- **Directory lookup**: O(1) hash map access in Protocol Buffers
-- **Space efficiency**: Minimal overhead with block reuse
-- **Scalability**: Supports files up to 2^32 blocks (~280TB with 128-byte blocks)
+## 🧬 Protocol Buffer Schema Highlights
 
-## Error Handling
+YFS uses Protobuf to define its file/directory metadata (`root.yfs`):
 
-The library provides comprehensive error handling for:
-- File not found errors
-- Invalid path errors
-- Block allocation failures
-- I/O errors
-- Protocol buffer serialization errors
+* **FileSystemHeader**: Includes version, block size, and root directory pointer
+* **DirectoryEntry**: Contains directory metadata and list of `FilePointer`s
+* **FileEntry_pb**: Stores file metadata, total size, and pointer to first index block
+* **FilePointer / DirectoryPointer**: Efficiently references files/directories by name + block ID
 
-## Thread Safety
+---
 
-**Note**: This implementation is not thread-safe. For concurrent access, implement appropriate locking mechanisms around YFS operations.
+## 📌 Example Usage (Go)
 
-## Limitations
+```go
+fs, _ := yfs.NewYFS("/path/to/yfs")
 
-- **Single-threaded**: No built-in concurrency support
-- **Memory usage**: Directory tree loaded entirely in memory
-- **Platform dependent**: File paths use OS-specific separators
-- **No compression**: Files stored as-is without compression
-- **No encryption**: No built-in security features
+fs.WriteFile("hello.txt", []byte("Hello, world!"))
+data, _ := fs.ReadFile("hello.txt")
 
-## Future Enhancements
+fs.CreateDirectory("docs")
+fs.MoveFile("hello.txt", "docs/hello.txt")
 
-Potential improvements could include:
-- Compression support
-- Encryption/security features
-- Concurrent access with locking
-- Memory-mapped file access
-- Block-level checksums
-- Directory streaming for large file systems
-- Custom block sizes per file type
+tree, _ := fs.LsAll()
+stats, _ := fs.GetStats()
+```
 
-## License
+---
+
+## ⚡ Performance
+
+| Operation        | Complexity                  |
+| ---------------- | --------------------------- |
+| Block access     | O(1) (by ID)                |
+| File read/write  | O(blocks\_used)             |
+| Directory lookup | O(1) (map in-memory)        |
+| Allocation       | O(1) avg (bitmap-optimized) |
+| File rename/move | O(1)                        |
+
+* **Append-efficient**, supports large files via block chains
+* **Minimal overhead**: only 4 bytes per block for chaining
+* **Scalable**: Up to \~280 TB with 128-byte blocks
+
+---
+
+## 🛑 Limitations
+
+* **Full tree loaded into memory**
+* **No compression or encryption (yet)**
+
+---
+
+## 🌱 Future Enhancements
+
+* ✅ Streamed access to large files and directories
+* ✅ Optional block-level checksums
+* 🔒 Encryption at block level
+* 📦 Compression for large data
+* 🔁 Journaling for write safety
+
+---
+
+## 📜 License
 
 MIT License

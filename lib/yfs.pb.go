@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        v3.21.12
-// source: yfs.proto
+// source: lib/yfs.proto
 
 package yfs
 
@@ -23,17 +23,19 @@ const (
 
 // FileSystemHeader contains the root directory and system metadata
 type FileSystemHeader struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Version       uint32                 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
-	BlockSize     uint32                 `protobuf:"varint,2,opt,name=block_size,json=blockSize,proto3" json:"block_size,omitempty"`
-	Root          *DirectoryEntry        `protobuf:"bytes,3,opt,name=root,proto3" json:"root,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Version         uint32                 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	BlockSize       uint32                 `protobuf:"varint,2,opt,name=block_size,json=blockSize,proto3" json:"block_size,omitempty"`
+	Root            *DirectoryEntry        `protobuf:"bytes,3,opt,name=root,proto3" json:"root,omitempty"`
+	TotalBlocks     uint64                 `protobuf:"varint,4,opt,name=total_blocks,json=totalBlocks,proto3" json:"total_blocks,omitempty"`             // Total blocks in the system
+	ChecksumEnabled uint32                 `protobuf:"varint,5,opt,name=checksum_enabled,json=checksumEnabled,proto3" json:"checksum_enabled,omitempty"` // Whether checksums are enabled
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *FileSystemHeader) Reset() {
 	*x = FileSystemHeader{}
-	mi := &file_yfs_proto_msgTypes[0]
+	mi := &file_lib_yfs_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +47,7 @@ func (x *FileSystemHeader) String() string {
 func (*FileSystemHeader) ProtoMessage() {}
 
 func (x *FileSystemHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_yfs_proto_msgTypes[0]
+	mi := &file_lib_yfs_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +60,7 @@ func (x *FileSystemHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileSystemHeader.ProtoReflect.Descriptor instead.
 func (*FileSystemHeader) Descriptor() ([]byte, []int) {
-	return file_yfs_proto_rawDescGZIP(), []int{0}
+	return file_lib_yfs_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *FileSystemHeader) GetVersion() uint32 {
@@ -82,18 +84,35 @@ func (x *FileSystemHeader) GetRoot() *DirectoryEntry {
 	return nil
 }
 
+func (x *FileSystemHeader) GetTotalBlocks() uint64 {
+	if x != nil {
+		return x.TotalBlocks
+	}
+	return 0
+}
+
+func (x *FileSystemHeader) GetChecksumEnabled() uint32 {
+	if x != nil {
+		return x.ChecksumEnabled
+	}
+	return 0
+}
+
 // FileMetadata contains common metadata for files and directories
 type FileMetadata struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	ModTime       int64                  `protobuf:"varint,2,opt,name=mod_time,json=modTime,proto3" json:"mod_time,omitempty"` // Unix timestamp
+	ModTime       int64                  `protobuf:"varint,2,opt,name=mod_time,json=modTime,proto3" json:"mod_time,omitempty"`          // Unix timestamp
+	CreateTime    int64                  `protobuf:"varint,3,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"` // Creation timestamp
+	Permissions   uint32                 `protobuf:"varint,4,opt,name=permissions,proto3" json:"permissions,omitempty"`                 // File permissions (optional)
+	Crc32         uint32                 `protobuf:"varint,5,opt,name=crc32,proto3" json:"crc32,omitempty"`                             // Optional checksum for metadata integrity
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *FileMetadata) Reset() {
 	*x = FileMetadata{}
-	mi := &file_yfs_proto_msgTypes[1]
+	mi := &file_lib_yfs_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -105,7 +124,7 @@ func (x *FileMetadata) String() string {
 func (*FileMetadata) ProtoMessage() {}
 
 func (x *FileMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_yfs_proto_msgTypes[1]
+	mi := &file_lib_yfs_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -118,7 +137,7 @@ func (x *FileMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileMetadata.ProtoReflect.Descriptor instead.
 func (*FileMetadata) Descriptor() ([]byte, []int) {
-	return file_yfs_proto_rawDescGZIP(), []int{1}
+	return file_lib_yfs_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *FileMetadata) GetName() string {
@@ -135,31 +154,51 @@ func (x *FileMetadata) GetModTime() int64 {
 	return 0
 }
 
-// FileEntry_pb represents a file in the protobuf format
-type FileEntryPb struct {
+func (x *FileMetadata) GetCreateTime() int64 {
+	if x != nil {
+		return x.CreateTime
+	}
+	return 0
+}
+
+func (x *FileMetadata) GetPermissions() uint32 {
+	if x != nil {
+		return x.Permissions
+	}
+	return 0
+}
+
+func (x *FileMetadata) GetCrc32() uint32 {
+	if x != nil {
+		return x.Crc32
+	}
+	return 0
+}
+
+// Extent represents a contiguous range of blocks
+type Extent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Metadata      *FileMetadata          `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
-	FirstBlockId  uint32                 `protobuf:"varint,2,opt,name=first_block_id,json=firstBlockId,proto3" json:"first_block_id,omitempty"`
-	Size          int64                  `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
+	StartBlockId  uint32                 `protobuf:"varint,1,opt,name=start_block_id,json=startBlockId,proto3" json:"start_block_id,omitempty"` // First block ID in the range
+	BlockCount    uint32                 `protobuf:"varint,2,opt,name=block_count,json=blockCount,proto3" json:"block_count,omitempty"`         // Number of contiguous blocks
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *FileEntryPb) Reset() {
-	*x = FileEntryPb{}
-	mi := &file_yfs_proto_msgTypes[2]
+func (x *Extent) Reset() {
+	*x = Extent{}
+	mi := &file_lib_yfs_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *FileEntryPb) String() string {
+func (x *Extent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*FileEntryPb) ProtoMessage() {}
+func (*Extent) ProtoMessage() {}
 
-func (x *FileEntryPb) ProtoReflect() protoreflect.Message {
-	mi := &file_yfs_proto_msgTypes[2]
+func (x *Extent) ProtoReflect() protoreflect.Message {
+	mi := &file_lib_yfs_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -170,28 +209,175 @@ func (x *FileEntryPb) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use FileEntryPb.ProtoReflect.Descriptor instead.
-func (*FileEntryPb) Descriptor() ([]byte, []int) {
-	return file_yfs_proto_rawDescGZIP(), []int{2}
+// Deprecated: Use Extent.ProtoReflect.Descriptor instead.
+func (*Extent) Descriptor() ([]byte, []int) {
+	return file_lib_yfs_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *FileEntryPb) GetMetadata() *FileMetadata {
+func (x *Extent) GetStartBlockId() uint32 {
+	if x != nil {
+		return x.StartBlockId
+	}
+	return 0
+}
+
+func (x *Extent) GetBlockCount() uint32 {
+	if x != nil {
+		return x.BlockCount
+	}
+	return 0
+}
+
+// IndexBlock represents a block that contains block references for a file
+type IndexBlock struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	BlockIds         []uint32               `protobuf:"varint,1,rep,packed,name=block_ids,json=blockIds,proto3" json:"block_ids,omitempty"`                      // Direct block IDs
+	Extents          []*Extent              `protobuf:"bytes,2,rep,name=extents,proto3" json:"extents,omitempty"`                                                // Contiguous block ranges
+	NextIndexBlockId uint32                 `protobuf:"varint,3,opt,name=next_index_block_id,json=nextIndexBlockId,proto3" json:"next_index_block_id,omitempty"` // Next index block (0 if last)
+	DataSize         uint32                 `protobuf:"varint,4,opt,name=data_size,json=dataSize,proto3" json:"data_size,omitempty"`                             // Actual data size in this index block's data
+	Crc32            uint32                 `protobuf:"varint,5,opt,name=crc32,proto3" json:"crc32,omitempty"`                                                   // Optional checksum
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *IndexBlock) Reset() {
+	*x = IndexBlock{}
+	mi := &file_lib_yfs_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IndexBlock) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IndexBlock) ProtoMessage() {}
+
+func (x *IndexBlock) ProtoReflect() protoreflect.Message {
+	mi := &file_lib_yfs_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IndexBlock.ProtoReflect.Descriptor instead.
+func (*IndexBlock) Descriptor() ([]byte, []int) {
+	return file_lib_yfs_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *IndexBlock) GetBlockIds() []uint32 {
+	if x != nil {
+		return x.BlockIds
+	}
+	return nil
+}
+
+func (x *IndexBlock) GetExtents() []*Extent {
+	if x != nil {
+		return x.Extents
+	}
+	return nil
+}
+
+func (x *IndexBlock) GetNextIndexBlockId() uint32 {
+	if x != nil {
+		return x.NextIndexBlockId
+	}
+	return 0
+}
+
+func (x *IndexBlock) GetDataSize() uint32 {
+	if x != nil {
+		return x.DataSize
+	}
+	return 0
+}
+
+func (x *IndexBlock) GetCrc32() uint32 {
+	if x != nil {
+		return x.Crc32
+	}
+	return 0
+}
+
+// FileEntry represents a file in the system
+type FileEntry struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Metadata          *FileMetadata          `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	FirstIndexBlockId uint32                 `protobuf:"varint,2,opt,name=first_index_block_id,json=firstIndexBlockId,proto3" json:"first_index_block_id,omitempty"` // Points to first index block (not data block)
+	Size              int64                  `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`                                                        // Total file size in bytes
+	IndexBlockCount   uint32                 `protobuf:"varint,4,opt,name=index_block_count,json=indexBlockCount,proto3" json:"index_block_count,omitempty"`         // Number of index blocks used
+	DataBlockCount    uint32                 `protobuf:"varint,5,opt,name=data_block_count,json=dataBlockCount,proto3" json:"data_block_count,omitempty"`            // Number of data blocks used
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *FileEntry) Reset() {
+	*x = FileEntry{}
+	mi := &file_lib_yfs_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FileEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FileEntry) ProtoMessage() {}
+
+func (x *FileEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_lib_yfs_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FileEntry.ProtoReflect.Descriptor instead.
+func (*FileEntry) Descriptor() ([]byte, []int) {
+	return file_lib_yfs_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *FileEntry) GetMetadata() *FileMetadata {
 	if x != nil {
 		return x.Metadata
 	}
 	return nil
 }
 
-func (x *FileEntryPb) GetFirstBlockId() uint32 {
+func (x *FileEntry) GetFirstIndexBlockId() uint32 {
 	if x != nil {
-		return x.FirstBlockId
+		return x.FirstIndexBlockId
 	}
 	return 0
 }
 
-func (x *FileEntryPb) GetSize() int64 {
+func (x *FileEntry) GetSize() int64 {
 	if x != nil {
 		return x.Size
+	}
+	return 0
+}
+
+func (x *FileEntry) GetIndexBlockCount() uint32 {
+	if x != nil {
+		return x.IndexBlockCount
+	}
+	return 0
+}
+
+func (x *FileEntry) GetDataBlockCount() uint32 {
+	if x != nil {
+		return x.DataBlockCount
 	}
 	return 0
 }
@@ -200,7 +386,7 @@ func (x *FileEntryPb) GetSize() int64 {
 type DirectoryEntry struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
 	Metadata      *FileMetadata              `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
-	Files         map[string]*FileEntryPb    `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Files         map[string]*FileEntry      `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Directories   map[string]*DirectoryEntry `protobuf:"bytes,3,rep,name=directories,proto3" json:"directories,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -208,7 +394,7 @@ type DirectoryEntry struct {
 
 func (x *DirectoryEntry) Reset() {
 	*x = DirectoryEntry{}
-	mi := &file_yfs_proto_msgTypes[3]
+	mi := &file_lib_yfs_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -220,7 +406,7 @@ func (x *DirectoryEntry) String() string {
 func (*DirectoryEntry) ProtoMessage() {}
 
 func (x *DirectoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_yfs_proto_msgTypes[3]
+	mi := &file_lib_yfs_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -233,7 +419,7 @@ func (x *DirectoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DirectoryEntry.ProtoReflect.Descriptor instead.
 func (*DirectoryEntry) Descriptor() ([]byte, []int) {
-	return file_yfs_proto_rawDescGZIP(), []int{3}
+	return file_lib_yfs_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DirectoryEntry) GetMetadata() *FileMetadata {
@@ -243,7 +429,7 @@ func (x *DirectoryEntry) GetMetadata() *FileMetadata {
 	return nil
 }
 
-func (x *DirectoryEntry) GetFiles() map[string]*FileEntryPb {
+func (x *DirectoryEntry) GetFiles() map[string]*FileEntry {
 	if x != nil {
 		return x.Files
 	}
@@ -257,91 +443,113 @@ func (x *DirectoryEntry) GetDirectories() map[string]*DirectoryEntry {
 	return nil
 }
 
-var File_yfs_proto protoreflect.FileDescriptor
+var File_lib_yfs_proto protoreflect.FileDescriptor
 
-const file_yfs_proto_rawDesc = "" +
+const file_lib_yfs_proto_rawDesc = "" +
 	"\n" +
-	"\tyfs.proto\x12\x03yfs\"t\n" +
+	"\rlib/yfs.proto\x12\x03yfs\"\xc2\x01\n" +
 	"\x10FileSystemHeader\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\rR\aversion\x12\x1d\n" +
 	"\n" +
 	"block_size\x18\x02 \x01(\rR\tblockSize\x12'\n" +
-	"\x04root\x18\x03 \x01(\v2\x13.yfs.DirectoryEntryR\x04root\"=\n" +
+	"\x04root\x18\x03 \x01(\v2\x13.yfs.DirectoryEntryR\x04root\x12!\n" +
+	"\ftotal_blocks\x18\x04 \x01(\x04R\vtotalBlocks\x12)\n" +
+	"\x10checksum_enabled\x18\x05 \x01(\rR\x0fchecksumEnabled\"\x96\x01\n" +
 	"\fFileMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n" +
-	"\bmod_time\x18\x02 \x01(\x03R\amodTime\"w\n" +
-	"\fFileEntry_pb\x12-\n" +
-	"\bmetadata\x18\x01 \x01(\v2\x11.yfs.FileMetadataR\bmetadata\x12$\n" +
-	"\x0efirst_block_id\x18\x02 \x01(\rR\ffirstBlockId\x12\x12\n" +
-	"\x04size\x18\x03 \x01(\x03R\x04size\"\xdf\x02\n" +
+	"\bmod_time\x18\x02 \x01(\x03R\amodTime\x12\x1f\n" +
+	"\vcreate_time\x18\x03 \x01(\x03R\n" +
+	"createTime\x12 \n" +
+	"\vpermissions\x18\x04 \x01(\rR\vpermissions\x12\x14\n" +
+	"\x05crc32\x18\x05 \x01(\rR\x05crc32\"O\n" +
+	"\x06Extent\x12$\n" +
+	"\x0estart_block_id\x18\x01 \x01(\rR\fstartBlockId\x12\x1f\n" +
+	"\vblock_count\x18\x02 \x01(\rR\n" +
+	"blockCount\"\xb2\x01\n" +
+	"\n" +
+	"IndexBlock\x12\x1b\n" +
+	"\tblock_ids\x18\x01 \x03(\rR\bblockIds\x12%\n" +
+	"\aextents\x18\x02 \x03(\v2\v.yfs.ExtentR\aextents\x12-\n" +
+	"\x13next_index_block_id\x18\x03 \x01(\rR\x10nextIndexBlockId\x12\x1b\n" +
+	"\tdata_size\x18\x04 \x01(\rR\bdataSize\x12\x14\n" +
+	"\x05crc32\x18\x05 \x01(\rR\x05crc32\"\xd5\x01\n" +
+	"\tFileEntry\x12-\n" +
+	"\bmetadata\x18\x01 \x01(\v2\x11.yfs.FileMetadataR\bmetadata\x12/\n" +
+	"\x14first_index_block_id\x18\x02 \x01(\rR\x11firstIndexBlockId\x12\x12\n" +
+	"\x04size\x18\x03 \x01(\x03R\x04size\x12*\n" +
+	"\x11index_block_count\x18\x04 \x01(\rR\x0findexBlockCount\x12(\n" +
+	"\x10data_block_count\x18\x05 \x01(\rR\x0edataBlockCount\"\xdc\x02\n" +
 	"\x0eDirectoryEntry\x12-\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x11.yfs.FileMetadataR\bmetadata\x124\n" +
 	"\x05files\x18\x02 \x03(\v2\x1e.yfs.DirectoryEntry.FilesEntryR\x05files\x12F\n" +
-	"\vdirectories\x18\x03 \x03(\v2$.yfs.DirectoryEntry.DirectoriesEntryR\vdirectories\x1aK\n" +
+	"\vdirectories\x18\x03 \x03(\v2$.yfs.DirectoryEntry.DirectoriesEntryR\vdirectories\x1aH\n" +
 	"\n" +
 	"FilesEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12'\n" +
-	"\x05value\x18\x02 \x01(\v2\x11.yfs.FileEntry_pbR\x05value:\x028\x01\x1aS\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12$\n" +
+	"\x05value\x18\x02 \x01(\v2\x0e.yfs.FileEntryR\x05value:\x028\x01\x1aS\n" +
 	"\x10DirectoriesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12)\n" +
 	"\x05value\x18\x02 \x01(\v2\x13.yfs.DirectoryEntryR\x05value:\x028\x01B\aZ\x05./yfsb\x06proto3"
 
 var (
-	file_yfs_proto_rawDescOnce sync.Once
-	file_yfs_proto_rawDescData []byte
+	file_lib_yfs_proto_rawDescOnce sync.Once
+	file_lib_yfs_proto_rawDescData []byte
 )
 
-func file_yfs_proto_rawDescGZIP() []byte {
-	file_yfs_proto_rawDescOnce.Do(func() {
-		file_yfs_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_yfs_proto_rawDesc), len(file_yfs_proto_rawDesc)))
+func file_lib_yfs_proto_rawDescGZIP() []byte {
+	file_lib_yfs_proto_rawDescOnce.Do(func() {
+		file_lib_yfs_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_lib_yfs_proto_rawDesc), len(file_lib_yfs_proto_rawDesc)))
 	})
-	return file_yfs_proto_rawDescData
+	return file_lib_yfs_proto_rawDescData
 }
 
-var file_yfs_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
-var file_yfs_proto_goTypes = []any{
+var file_lib_yfs_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_lib_yfs_proto_goTypes = []any{
 	(*FileSystemHeader)(nil), // 0: yfs.FileSystemHeader
 	(*FileMetadata)(nil),     // 1: yfs.FileMetadata
-	(*FileEntryPb)(nil),      // 2: yfs.FileEntry_pb
-	(*DirectoryEntry)(nil),   // 3: yfs.DirectoryEntry
-	nil,                      // 4: yfs.DirectoryEntry.FilesEntry
-	nil,                      // 5: yfs.DirectoryEntry.DirectoriesEntry
+	(*Extent)(nil),           // 2: yfs.Extent
+	(*IndexBlock)(nil),       // 3: yfs.IndexBlock
+	(*FileEntry)(nil),        // 4: yfs.FileEntry
+	(*DirectoryEntry)(nil),   // 5: yfs.DirectoryEntry
+	nil,                      // 6: yfs.DirectoryEntry.FilesEntry
+	nil,                      // 7: yfs.DirectoryEntry.DirectoriesEntry
 }
-var file_yfs_proto_depIdxs = []int32{
-	3, // 0: yfs.FileSystemHeader.root:type_name -> yfs.DirectoryEntry
-	1, // 1: yfs.FileEntry_pb.metadata:type_name -> yfs.FileMetadata
-	1, // 2: yfs.DirectoryEntry.metadata:type_name -> yfs.FileMetadata
-	4, // 3: yfs.DirectoryEntry.files:type_name -> yfs.DirectoryEntry.FilesEntry
-	5, // 4: yfs.DirectoryEntry.directories:type_name -> yfs.DirectoryEntry.DirectoriesEntry
-	2, // 5: yfs.DirectoryEntry.FilesEntry.value:type_name -> yfs.FileEntry_pb
-	3, // 6: yfs.DirectoryEntry.DirectoriesEntry.value:type_name -> yfs.DirectoryEntry
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+var file_lib_yfs_proto_depIdxs = []int32{
+	5, // 0: yfs.FileSystemHeader.root:type_name -> yfs.DirectoryEntry
+	2, // 1: yfs.IndexBlock.extents:type_name -> yfs.Extent
+	1, // 2: yfs.FileEntry.metadata:type_name -> yfs.FileMetadata
+	1, // 3: yfs.DirectoryEntry.metadata:type_name -> yfs.FileMetadata
+	6, // 4: yfs.DirectoryEntry.files:type_name -> yfs.DirectoryEntry.FilesEntry
+	7, // 5: yfs.DirectoryEntry.directories:type_name -> yfs.DirectoryEntry.DirectoriesEntry
+	4, // 6: yfs.DirectoryEntry.FilesEntry.value:type_name -> yfs.FileEntry
+	5, // 7: yfs.DirectoryEntry.DirectoriesEntry.value:type_name -> yfs.DirectoryEntry
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
-func init() { file_yfs_proto_init() }
-func file_yfs_proto_init() {
-	if File_yfs_proto != nil {
+func init() { file_lib_yfs_proto_init() }
+func file_lib_yfs_proto_init() {
+	if File_lib_yfs_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_yfs_proto_rawDesc), len(file_yfs_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_lib_yfs_proto_rawDesc), len(file_lib_yfs_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_yfs_proto_goTypes,
-		DependencyIndexes: file_yfs_proto_depIdxs,
-		MessageInfos:      file_yfs_proto_msgTypes,
+		GoTypes:           file_lib_yfs_proto_goTypes,
+		DependencyIndexes: file_lib_yfs_proto_depIdxs,
+		MessageInfos:      file_lib_yfs_proto_msgTypes,
 	}.Build()
-	File_yfs_proto = out.File
-	file_yfs_proto_goTypes = nil
-	file_yfs_proto_depIdxs = nil
+	File_lib_yfs_proto = out.File
+	file_lib_yfs_proto_goTypes = nil
+	file_lib_yfs_proto_depIdxs = nil
 }

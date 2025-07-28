@@ -9,24 +9,48 @@ message FileSystemHeader {
     uint32 version = 1;
     uint32 block_size = 2;
     DirectoryEntry root = 3;
+    uint64 total_blocks = 4;      // Total blocks in the system
+    uint32 checksum_enabled = 5;  // Whether checksums are enabled
 }
 
 // FileMetadata contains common metadata for files and directories
 message FileMetadata {
     string name = 1;
-    int64 mod_time = 2;  // Unix timestamp
+    int64 mod_time = 2;          // Unix timestamp
+    int64 create_time = 3;       // Creation timestamp
+    uint32 permissions = 4;      // File permissions (optional)
+    uint32 crc32 = 5;           // Optional checksum for metadata integrity
 }
 
-// FileEntry_pb represents a file in the protobuf format
-message FileEntry_pb {
+// Extent represents a contiguous range of blocks
+message Extent {
+    uint32 start_block_id = 1;   // First block ID in the range
+    uint32 block_count = 2;      // Number of contiguous blocks
+}
+
+// IndexBlock represents a block that contains block references for a file
+message IndexBlock {
+    repeated uint32 block_ids = 1;     // Direct block IDs
+    repeated Extent extents = 2;       // Contiguous block ranges
+    uint32 next_index_block_id = 3;    // Next index block (0 if last)
+    uint32 data_size = 4;              // Actual data size in this index block's data
+    uint32 crc32 = 5;                 // Optional checksum
+}
+
+// FileEntry represents a file in the system
+message FileEntry {
     FileMetadata metadata = 1;
-    uint32 first_block_id = 2;
-    int64 size = 3;
+    uint32 first_index_block_id = 2;   // Points to first index block (not data block)
+    int64 size = 3;                    // Total file size in bytes
+    uint32 index_block_count = 4;      // Number of index blocks used
+    uint32 data_block_count = 5;       // Number of data blocks used
 }
 
 // DirectoryEntry represents a directory with files and subdirectories
 message DirectoryEntry {
     FileMetadata metadata = 1;
-    map<string, FileEntry_pb> files = 2;
+    map<string, FileEntry> files = 2;
     map<string, DirectoryEntry> directories = 3;
+    // For large directories, consider using indirect references:
+    // uint32 large_dir_block_id = 4;  // Block containing large directory data
 }

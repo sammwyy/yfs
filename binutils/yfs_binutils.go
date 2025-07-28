@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 
 	yfs "github.com/sammwyy/yfs/lib"
@@ -193,23 +192,14 @@ func (c *YFSCli) cmdLs(args []string) {
 	}
 
 	// Sort entries: directories first, then files
-	dirs, files := []yfs.FileEntry{}, []yfs.FileEntry{}
 	for _, entry := range entries {
 		if entry.IsDirectory {
-			dirs = append(dirs, entry)
+			fmt.Printf("d %s %s/\n",
+				entry.ModTime.Format("2006-01-02 15:04:05"), entry.Name)
 		} else {
-			files = append(files, entry)
+			fmt.Printf("- %s %8d %s\n",
+				entry.ModTime.Format("2006-01-02 15:04:05"), entry.Size, entry.Name)
 		}
-	}
-
-	for _, entry := range dirs {
-		fmt.Printf("d %s %s/\n",
-			entry.ModTime.Format("2006-01-02 15:04:05"), entry.Name)
-	}
-
-	for _, entry := range files {
-		fmt.Printf("- %s %8d %s\n",
-			entry.ModTime.Format("2006-01-02 15:04:05"), entry.Size, entry.Name)
 	}
 }
 
@@ -315,18 +305,8 @@ func (c *YFSCli) cmdMkdir(args []string) {
 	}
 
 	path := c.resolvePath(args[0])
+	c.fs.CreateDirectory(path)
 
-	// Create a dummy file in the directory to ensure it exists
-	// This is a workaround since YFS might not have explicit directory creation
-	dummyFile := filepath.Join(path, ".keep")
-	err := c.fs.WriteFile(dummyFile, []byte(""))
-	if err != nil {
-		fmt.Printf("Error creating directory: %v\n", err)
-		return
-	}
-
-	// Remove the dummy file
-	c.fs.DeleteFile(dummyFile)
 	fmt.Printf("Created directory %s\n", path)
 }
 
@@ -423,18 +403,13 @@ func (c *YFSCli) cmdStats() {
 	}
 }
 
-func (c *YFSCli) printTree(entry *yfs.FileEntry, indent string) {
+func (c *YFSCli) printFile(entry *yfs.FileEntry, indent string) {
+	fmt.Printf("%s├── %s (%d bytes)\n", indent, entry.Metadata.Name, entry.Size)
+}
+
+func (c *YFSCli) printTree(entry *yfs.FileInfo, indent string) {
 	if entry.IsDirectory {
 		fmt.Printf("%s├── %s/\n", indent, entry.Name)
-
-		for name, child := range entry.Children {
-			if child.IsDirectory {
-				fmt.Printf("%s├── %s/\n", indent, name)
-				c.printTree(child, indent+"│   ")
-			} else {
-				fmt.Printf("%s├── %s (%d bytes)\n", indent, name, child.Size)
-			}
-		}
 	} else {
 		fmt.Printf("%s├── %s (%d bytes)\n", indent, entry.Name, entry.Size)
 	}
