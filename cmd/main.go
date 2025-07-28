@@ -62,9 +62,9 @@ func main() {
 			flag.Usage()
 			os.Exit(1)
 		}
-		fs, err = yfs.NewYFS(*directory)
+		fs, err = yfs.New(*directory)
 	} else if *indexFile != "" && *freeFile != "" && *blocksFile != "" {
-		fs, err = yfs.NewYFSFromPaths(*indexFile, *freeFile, *blocksFile)
+		fs, err = yfs.NewFromPaths(*indexFile, *freeFile, *blocksFile)
 	} else {
 		fmt.Fprintf(os.Stderr, "Error: Must specify either -dir or all three files (-index, -free, -blocks)\n")
 		flag.Usage()
