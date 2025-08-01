@@ -53,17 +53,17 @@ type FileInfo struct {
 	BlockCount  uint32
 }
 
-// NewYFS creates a new YFS instance from a directory
-func NewYFS(dir string) (*YFS, error) {
-	return NewYFSFromPaths(
+// New creates a new YFS instance from a directory
+func New(dir string) (*YFS, error) {
+	return NewFromPaths(
 		filepath.Join(dir, "root.yfs"),
 		filepath.Join(dir, "bitmap.yfs"),
 		filepath.Join(dir, "blocks.glob"),
 	)
 }
 
-// NewYFSFromPaths creates a new YFS instance from individual file paths
-func NewYFSFromPaths(rootPath, bitmapPath, blocksPath string) (*YFS, error) {
+// NewFromPaths creates a new YFS instance from individual file paths
+func NewFromPaths(rootPath, bitmapPath, blocksPath string) (*YFS, error) {
 	yfs := &YFS{
 		rootPath:        rootPath,
 		bitmapPath:      bitmapPath,
